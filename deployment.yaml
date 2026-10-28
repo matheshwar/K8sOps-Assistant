@@ -1,0 +1,70 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: anythingllm
+  namespace: ai-assistant
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: anythingllm
+  template:
+    metadata:
+      labels:
+        app: anythingllm
+    spec:
+      serviceAccountName: anythingllm-sa
+      securityContext:
+        runAsUser: 0
+        fsGroup: 0
+      initContainers:
+      - name: init-config
+        image: anythingllm-custom:2.0
+        imagePullPolicy: IfNotPresent
+        env:
+        - name: GRAFANA_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: anythingllm-secrets-v2
+              key: GRAFANA_TOKEN
+        command:
+        - sh
+        - -c
+        - |
+          mkdir -p /storage/plugins /storage/k8sgpt-config/k8sgpt
+          sed "s|__GRAFANA_TOKEN__|${GRAFANA_TOKEN}|" /mcp-config/anythingllm_mcp_servers.json > /storage/plugins/anythingllm_mcp_servers.json
+          cp /mcp-config/k8sgpt.yaml /storage/k8sgpt-config/k8sgpt/k8sgpt.yaml
+          chmod -R 777 /storage
+        volumeMounts:
+        - name: storage
+          mountPath: /storage
+        - name: mcp-config
+          mountPath: /mcp-config
+      containers:
+      - name: anythingllm
+        image: anythingllm-custom:2.0
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 3001
+        env:
+        - name: STORAGE_DIR
+          value: "/app/server/storage"
+        resources:
+          requests:
+            cpu: "500m"
+            memory: "1Gi"
+          limits:
+            cpu: "1"
+            memory: "2Gi"
+        volumeMounts:
+        - name: storage
+          mountPath: /app/server/storage
+      volumes:
+      - name: storage
+        persistentVolumeClaim:
+          claimName: anythingllm-storage
+      - name: mcp-config
+        configMap:
+          name: anythingllm-mcp-config-v2
