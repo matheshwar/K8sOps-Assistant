@@ -19,29 +19,6 @@ spec:
       securityContext:
         runAsUser: 0
         fsGroup: 0
-      initContainers:
-      - name: init-config
-        image: anythingllm-custom:2.0
-        imagePullPolicy: IfNotPresent
-        env:
-        - name: GRAFANA_TOKEN
-          valueFrom:
-            secretKeyRef:
-              name: anythingllm-secrets-v2
-              key: GRAFANA_TOKEN
-        command:
-        - sh
-        - -c
-        - |
-          mkdir -p /storage/plugins /storage/k8sgpt-config/k8sgpt
-          sed "s|__GRAFANA_TOKEN__|${GRAFANA_TOKEN}|" /mcp-config/anythingllm_mcp_servers.json > /storage/plugins/anythingllm_mcp_servers.json
-          cp /mcp-config/k8sgpt.yaml /storage/k8sgpt-config/k8sgpt/k8sgpt.yaml
-          chmod -R 777 /storage
-        volumeMounts:
-        - name: storage
-          mountPath: /storage
-        - name: mcp-config
-          mountPath: /mcp-config
       containers:
       - name: anythingllm
         image: anythingllm-custom:2.0
